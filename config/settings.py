@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     
     'rest_framework',
     'drf_spectacular',
+    'corsheaders',
 
     'campagne',
 ]
@@ -53,6 +54,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+CORS_ALLOW_ALL_ORIGINS = True
 
 ROOT_URLCONF = 'config.urls'
 
