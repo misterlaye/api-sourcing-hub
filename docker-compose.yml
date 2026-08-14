@@ -1,0 +1,40 @@
+services:
+  redis:
+    image: redis:8-alpine
+    container_name: sourcing_hub_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  api:
+    build: .
+    container_name: sourcing_hub_api
+    restart: always
+    command: uv run python3 manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app # Permet le live-reload quand tu modifies le code sur ta machine
+      - /app/.venv
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      - redis
+
+  celery:
+    build: .
+    container_name: sourcing_hub_celery
+    restart: always
+    command: uv run celery -A config worker -l INFO
+    volumes:
+      - .:/app
+      - /app/.venv
+    env_file:
+      - .env
+    depends_on:
+      - redis
+
+volumes:
+  redis_data:
