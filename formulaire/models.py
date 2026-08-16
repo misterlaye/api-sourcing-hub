@@ -29,8 +29,7 @@ class SectionFormulaire(models.Model):
     description=models.TextField(blank=True)
     # Permet de determiner l ordre des sections
     ordre=models.PositiveIntegerField(default=0)
-    date_creation= models.DateTimeField(auto_now=True)
-    date_modification=models.DateTimeField(auto_now=True)
+
 
 
     class Meta:
