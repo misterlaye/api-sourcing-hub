@@ -3,8 +3,12 @@ name = "api-sourcing-hub"
 version = "0.1.0"
 requires-python = ">=3.14"
 dependencies = [
+    "celery>=5.6.3",
     "django>=6.1",
     "django-cors-headers>=4.9.0",
+    "django-anymail[brevo]>=15.1",
     "djangorestframework>=3.18.0",
+    "redis>=8.1.0",
+    "djangorestframework-simplejwt>=5.2",
     "drf-spectacular>=0.30.0",
 ]
