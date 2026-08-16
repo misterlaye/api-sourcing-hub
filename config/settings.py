@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     
     'rest_framework',
     'anymail',
+    'rest_framework_simplejwt.token_blacklist',
 
     'accounts',
 ]
@@ -139,6 +140,27 @@ DEFAULT_FROM_EMAIL = os.environ["DEFAULT_FROM_EMAIL"]
 
 
 AUTH_USER_MODEL = 'accounts.User'
+
+# REST Framework & JWT
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+}
+
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+}
 
 # Configuration Celery Broker & Redis
 CELERY_BROKER_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")

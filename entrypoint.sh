@@ -28,7 +28,7 @@ else:
     else:
         User.objects.create_superuser(
             email=email,
-            password=password,
+            password=password
         )
         print(f"✅ Superuser {email} créé.")
 

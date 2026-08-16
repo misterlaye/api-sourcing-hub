@@ -18,7 +18,7 @@ COPY pyproject.toml uv.lock /app/
 RUN uv sync --frozen --no-dev
 
 # Copie du code source du projet
-COPY . /app/
+COPY . .
 
 # Entrypoint
 COPY entrypoint.sh /entrypoint.sh
