@@ -30,12 +30,11 @@ class QuestionSerializer(serializers.ModelSerializer):
 
 class SectionFormulaireSerializer(serializers.ModelSerializer):
 
-    """
-    Serializer d'une section du formulaire.
+    #Serializer d'une section du formulaire.
 
-    Les questions de la section sont retournées
-    directement dans la réponse JSON.
-    """
+   # Les questions de la section sont retournées
+   # directement dans la réponse JSON.
+    
     questions=QuestionSerializer(many=True,read_only=True,)
     class Meta:
         model = SectionFormulaire
@@ -69,7 +68,7 @@ class FormulaireSerializer(serializers.ModelSerializer):
             "campagne",
             "titre",
             "description",
-            "publie",
+            "publier",
             "actif",
             "sections",
             "date_creation",

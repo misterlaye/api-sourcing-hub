@@ -6,6 +6,7 @@ class Formulaire(models.Model):
     # Campagne 1 -------- 1 Formulaire
     campagne= models.OneToOneField("campagne.Campagne", on_delete=models.CASCADE,related_name="formulaire",)
     titre=models.TextField(blank=True)
+    description=models.TextField(blank=True)
     # indiquer si e formulaire est publie
     publier=models.BooleanField(default=False)
      # Permet d'activer ou désactiver le formulaire.

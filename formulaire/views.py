@@ -1,3 +1,4 @@
+from django.db.models import Prefetch
 from django.shortcuts import render
 
 # Create your views here.
@@ -19,9 +20,17 @@ class FormulaireViewSet(viewsets.ModelViewSet):
         #recupere les formlaires avec leus sections , options etc
         # Cela évite de multiplier inutilement les requêtes
         #SQL lorsque Vue.js demande un formulaire complet. 
-        return Formulaire.objects.select_related("campagne").prefetch_related(Prefetch("sections",queryset=(SectionFormulaire.objects.order_by("ordre","id").prefetch_related(Pretech("questions",queryset=(Question.objects.order_by("odre","id").prefetch_related("options")
-        ),)),
-        )))
+        return Formulaire.objects.select_related("campagne").prefetch_related(
+            Prefetch(
+                "sections",
+                queryset=SectionFormulaire.objects.order_by("ordre", "id").prefetch_related(
+                    Prefetch(
+                        "questions",
+                        queryset=Question.objects.order_by("ordre", "id").prefetch_related("options"),
+                    )
+                ),
+            )
+        )
     def get_permissions(self):
         # les Operateur sont revervees au administrateur
         if self.action in [
@@ -55,7 +64,7 @@ class FormulaireViewSet(viewsets.ModelViewSet):
     @extend_schema(
         summary="Previsualiser un formulaire",
         description=("Retouner le formulaire complet pour le mode visualisation."),
-        Responses= FormulairePreviewSerializer,
+        responses= FormulairePreviewSerializer,
 
     )
     @action(detail=True, methods=["get"],url_path="preview",)
@@ -69,14 +78,14 @@ class FormulaireViewSet(viewsets.ModelViewSet):
         summary="Publier un formulaire",
         description=( "Publie le formulaire après vérification "
                     "de sa structure."),
-        Response=FormulaireSerializer,
+        responses=FormulaireSerializer,
     )
 
     @action(detail=True,methods=["post"],url_path="publier",)
     def publier(self,request,pk=None):
         Formulaire= self.get_object()
         try:
-            formulaire=publier_formulaire(formulaire)
+            formulaire=publier_formulaire(Formulaire)
         except ValueError as error:
             return Response(
 
@@ -115,8 +124,7 @@ class SectionFormulaireViewSet(viewsets.ModelViewSet):
 
         /api/sections/?formulaire=1
         """
-        queryset = (SectionFormulaire.objectsprefetch_related( "questions__options" )
-        )
+        queryset = SectionFormulaire.objects.prefetch_related("questions__options")
         formulaire_id = (self.request.query_params.get( "formulaire" )
         )
         if formulaire_id:

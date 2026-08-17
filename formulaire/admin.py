@@ -9,12 +9,12 @@ class FormulaireAdmin(admin.ModelAdmin):
     list_display = (
         "titre",
         "campagne",
-        "publie",
+        "publier",
         "actif",
         "date_creation",
     )
     list_filter = (
-        "publie",
+        "publier",
         "actif",
     )
     search_fields = (
@@ -33,7 +33,6 @@ class SectionFormulaireAdmin(admin.ModelAdmin):
         "titre",
         "formulaire",
         "ordre",
-        "date_creation",
     )
     list_filter = (
         "formulaire",
