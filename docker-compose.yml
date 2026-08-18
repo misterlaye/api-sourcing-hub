@@ -13,6 +13,8 @@ services:
     container_name: sourcing_hub_api
     restart: always
     command: uv run python3 manage.py runserver 0.0.0.0:8000
+    environment:
+      RUN_CREATE_SUPERUSER: "1"
     volumes:
       - .:/app # Permet le live-reload quand tu modifies le code sur ta machine
       - /app/.venv
@@ -27,6 +29,8 @@ services:
     build: .
     container_name: sourcing_hub_celery
     restart: always
+    environment:
+      RUN_CREATE_SUPERUSER: "0"
     command: uv run celery -A config worker -l INFO
     volumes:
       - .:/app
