@@ -52,6 +52,7 @@ INSTALLED_APPS = [
 
     'campagne',
     'formulaire',
+    'candidature',
 ]
 
 MIDDLEWARE = [
