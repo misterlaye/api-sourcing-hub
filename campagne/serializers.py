@@ -1,7 +1,9 @@
+from datetime import date
+
 from django.utils import timezone
 import re
 from rest_framework import serializers
-from .models import Referentiel, Campagne, CritereSelection
+from .models import Referentiel, Campagne, CritereSelection, ReunionInformation
 
 # Chaîne composée uniquement de chiffres (avec éventuellement espaces, signe, décimale)
 NUMERIC_ONLY_RE = re.compile(r'^\s*-?\d+([.,]\d+)?\s*$')
@@ -74,3 +76,25 @@ class CampagneSerializer(serializers.ModelSerializer):
             )
 
         return data
+
+
+class ReunionInformationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ReunionInformation
+        fields = ['id', 'ri_date', 'begin_hour', 'end_hour', 'location', 'campagne']
+
+    def validate_ri_date(self, value):
+        if value <= date.today():
+            raise serializers.ValidationError("La date de la réunion doit être dans le futur.")
+        return value
+
+    def validate(self, attrs):
+        begin_hour = attrs.get('begin_hour', getattr(self.instance, 'begin_hour', None))
+        end_hour = attrs.get('end_hour', getattr(self.instance, 'end_hour', None))
+
+        if begin_hour is not None and end_hour is not None and end_hour <= begin_hour:
+            raise serializers.ValidationError(
+                {"end_hour": "L'heure de fin doit être postérieure à l'heure de début."}
+            )
+
+        return attrs

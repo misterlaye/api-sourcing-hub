@@ -40,3 +40,12 @@ class Campagne(models.Model):
 
     def __str__(self):
             return self.title
+
+
+class ReunionInformation(models.Model):
+    ri_date = models.DateField()
+    begin_hour = models.TimeField()
+    end_hour = models.TimeField()
+    location = models.CharField(max_length=255) 
+    campagne = models.ForeignKey(Campagne, on_delete=models.CASCADE, related_name='ri')
+ 
