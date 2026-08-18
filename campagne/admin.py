@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.forms import forms
-from .models import Referentiel, Campagne, CritereSelection
+from .models import Referentiel, Campagne, CritereSelection, ReunionInformation
 
 @admin.register(Referentiel)
 class ReferentielModelAdmin(admin.ModelAdmin):
@@ -19,3 +19,6 @@ class CampagneModelAdmin(admin.ModelAdmin):
 class CritereSelectionModelAdmin(admin.ModelAdmin):
     list_display = ('name','description')
 
+@admin.register(ReunionInformation)
+class ReunionInformationModelAdmin(admin.ModelAdmin):
+    list_display = ('ri_date', 'begin_hour', 'end_hour','location', 'campagne')

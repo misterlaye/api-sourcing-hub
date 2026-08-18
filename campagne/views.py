@@ -1,11 +1,12 @@
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status as http_status, viewsets, permissions
-from .models import CritereSelection, Campagne, Referentiel
+from .models import CritereSelection, Campagne, Referentiel, ReunionInformation
 from .serializers import (
     CampagneSerializer,
     CritereSelectionSerializer,
-    ReferentielSerializer
+    ReferentielSerializer,
+    ReunionInformationSerializer
 )
 from accounts.permissions import HasRole, IsAccountActive
 from accounts.models import User
@@ -51,3 +52,9 @@ class CampagneViewSet(viewsets.ModelViewSet):
         campagne.status = Campagne.Status.CLOTUREE
         campagne.save()
         return Response(self.get_serializer(campagne).data)
+
+
+class ReunionInformationViewSet(viewsets.ModelViewSet):
+    queryset = ReunionInformation.objects.all()
+    serializer_class = ReunionInformationSerializer
+    permission_classes = [permissions.IsAuthenticated, HasRole.with_roles(User.Role.ADMIN)]
