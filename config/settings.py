@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'accounts',
     'campagne',
     'formulaire',
+    'candidature',
 ]
 
 AUTH_USER_MODEL = 'accounts.User'
