@@ -55,12 +55,12 @@ def publier_formulaire(formulaire):
                 )
 
     # Toutes les vérifications sont terminées.
-    formulaire.publie = True
+    formulaire.publier = True
     formulaire.actif = True
 
     formulaire.save(
         update_fields=[
-            "publie",
+            "publier",
             "actif",
             "updated_at",
         ]
@@ -75,11 +75,11 @@ def depublier_formulaire(formulaire):
     Dépublie un formulaire.
     """
 
-    formulaire.publie = False
+    formulaire.publier = False
 
     formulaire.save(
         update_fields=[
-            "publie",
+            "publier",
             "updated_at",
         ]
     )

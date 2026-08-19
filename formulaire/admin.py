@@ -1,6 +1,5 @@
 from django.contrib import admin
-from .models import ( Formulaire,SectionFormulaire,Question,OptionQuestion,
-)
+from .models import ( Formulaire,SectionFormulaire,Question,OptionQuestion, ReponseQuestion, ReponseOption,)
 @admin.register(Formulaire)
 class FormulaireAdmin(admin.ModelAdmin):
     """
@@ -91,4 +90,55 @@ class OptionQuestionAdmin(admin.ModelAdmin):
     ordering = (
         "question",
         "ordre",
+    )
+
+@admin.register(ReponseQuestion)
+class ReponseQuestionAdmin(admin.ModelAdmin):
+    """
+    Configuration des réponses dans Django Admin.
+    """
+    list_display = (
+        "id",
+        "candidature",
+        "question",
+        "valeur",
+        "date_reponse",
+    )
+    list_filter = (
+        "candidature",
+        "question",
+    )
+    search_fields = (
+        "valeur",
+        "candidature__nom",
+        "candidature__prenom",
+        "question__texte",
+    )
+    ordering = (
+        "-date_reponse",
+    )
+
+
+@admin.register(ReponseOption)
+class ReponseOptionAdmin(admin.ModelAdmin):
+    """
+    Configuration des options sélectionnées dans Django Admin.
+    """
+    list_display = (
+        "id",
+        "reponse",
+        "option",
+    )
+    list_filter = (
+        "reponse__candidature",
+        "option__question",
+    )
+    search_fields = (
+        "option__texte",
+        "option__valeur",
+        "reponse__valeur",
+    )
+    ordering = (
+        "reponse",
+        "option",
     )

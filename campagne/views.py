@@ -1,6 +1,7 @@
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status as http_status, viewsets, permissions
+from formulaire.permissions import IsAdministrateur
 from .models import CritereSelection, Campagne, Referentiel, ReunionInformation
 from .serializers import (
     CampagneSerializer,
@@ -11,23 +12,34 @@ from .serializers import (
 from accounts.permissions import HasRole, IsAccountActive
 from accounts.models import User
 
-
 class ReferentielViewSet(viewsets.ModelViewSet):
     queryset = Referentiel.objects.all()
     serializer_class = ReferentielSerializer
-    permission_classes = [permissions.IsAuthenticated, HasRole.with_roles(User.Role.ADMIN)]
+
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [permissions.IsAuthenticated(), IsAdministrateur()]
+        return [permissions.IsAuthenticated()]
 
 
 class CritereSelectionViewSet(viewsets.ModelViewSet):
     queryset = CritereSelection.objects.all()
     serializer_class = CritereSelectionSerializer
-    permission_classes = [permissions.IsAuthenticated, HasRole.with_roles(User.Role.ADMIN)]
+
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [permissions.IsAuthenticated(), IsAdministrateur()]
+        return [permissions.IsAuthenticated()]
 
 
 class CampagneViewSet(viewsets.ModelViewSet):
     queryset = Campagne.objects.all()
     serializer_class = CampagneSerializer
-    permission_classes = [permissions.IsAuthenticated, HasRole.with_roles(User.Role.ADMIN)]
+
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy', 'publier', 'cloturer']:
+            return [permissions.IsAuthenticated(), IsAdministrateur()]
+        return [permissions.IsAuthenticated()]
 
     @action(detail=True, methods=['post'])
     def publier(self, request, pk=None):

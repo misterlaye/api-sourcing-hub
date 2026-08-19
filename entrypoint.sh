@@ -8,7 +8,7 @@ uv run python manage.py migrate --noinput
 
 echo "Vérification du superuser..."
 
-if ["${RUN_CREATE_SUPERUSER:-0}" = "1"]; then
+if [ "${RUN_CREATE_SUPERUSER:-0}" = "1" ]; then
     uv run python manage.py shell <<'PY'
 import os
 from django.contrib.auth import get_user_model
