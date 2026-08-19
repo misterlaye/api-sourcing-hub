@@ -1,16 +1,17 @@
 from django.db.models import Prefetch
 from django.shortcuts import render
+from django.db import transaction
 
 # Create your views here.
-from rest_framework import status , viewsets
+from rest_framework import status , viewsets, permissions
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
-from .models import Formulaire, SectionFormulaire, Question, OptionQuestion
-from .serializers import FormulaireSerializer, FormulairePreviewSerializer, SectionFormulaireSerializer, QuestionSerializer, OptionQuestionSerializer
+from .models import Formulaire, SectionFormulaire, Question, OptionQuestion, ReponseQuestion, ReponseOption
+from .serializers import FormulaireSerializer, FormulairePreviewSerializer, SectionFormulaireSerializer, QuestionSerializer, OptionQuestionSerializer, ReponseSubmissionSerializer, ReponseQuestionSerializer, ReponseCandidatureSerializer, ReponseOptionSerializer
 from .permissions import IsAdministrateur
 from .services import publier_formulaire,depublier_formulaire
+from candidature.models import Candidature
 
 
 class FormulaireViewSet(viewsets.ModelViewSet):
@@ -113,6 +114,148 @@ class FormulaireViewSet(viewsets.ModelViewSet):
             serializer.data,
             status=status.HTTP_200_OK,
         )
+
+    @extend_schema(
+        summary="Soumettre les réponses d'un formulaire",
+        description=("Enregistre les réponses d'une candidature pour un formulaire. "
+                    "Toutes les validations sont effectuées : cohérence candidature/campagne, "
+                    "question appartient au formulaire, option appartient à la question, "
+                    "questions obligatoires."),
+        request=ReponseSubmissionSerializer,
+        responses=ReponseCandidatureSerializer,
+    )
+    @action(detail=True, methods=["post"], url_path="soumettre-reponses",)
+    def soumettre_reponses(self, request, pk=None):
+        formulaire = self.get_object()
+        serializer = ReponseSubmissionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        candidature = serializer.validated_data["candidature"]
+        reponses_data = serializer.validated_data["reponses"]
+
+        if candidature.campagne_id != formulaire.campagne_id:
+            return Response(
+                {"detail": "La candidature n'appartient pas à la campagne de ce formulaire."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        questions_formulaire = set(
+            Question.objects.filter(section__formulaire=formulaire).values_list("id", flat=True)
+        )
+
+        types_avec_options = [
+            Question.TypeQuestion.RADIO,
+            Question.TypeQuestion.CHECKBOX,
+            Question.TypeQuestion.SELECT,
+        ]
+
+        for reponse_data in reponses_data:
+            question = reponse_data["question"]
+
+            if question.id not in questions_formulaire:
+                return Response(
+                    {"detail": f"La question {question.id} n'appartient pas à ce formulaire."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if question.type_question in types_avec_options:
+                options = reponse_data.get("options", [])
+
+                if question.type_question == Question.TypeQuestion.CHECKBOX:
+                    if question.obligatoire and not options:
+                        return Response(
+                            {"detail": f"La question {question.id} est obligatoire."},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+                    for option in options:
+                        if option.question_id != question.id:
+                            return Response(
+                                {"detail": f"L'option {option.id} n'appartient pas à la question {question.id}."},
+                                status=status.HTTP_400_BAD_REQUEST,
+                            )
+                else:
+                    if len(options) != 1:
+                        return Response(
+                            {"detail": f"La question {question.id} nécessite exactement une option."},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+                    option = options[0]
+                    if option.question_id != question.id:
+                        return Response(
+                            {"detail": f"L'option {option.id} n'appartient pas à la question {question.id}."},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+            else:
+                valeur = reponse_data.get("valeur", "")
+                if question.obligatoire and not valeur.strip():
+                    return Response(
+                        {"detail": f"La question {question.id} est obligatoire."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+        try:
+            with transaction.atomic():
+                result_reponses = []
+                for reponse_data in reponses_data:
+                    question = reponse_data["question"]
+
+                    reponse_question, _ = ReponseQuestion.objects.get_or_create(
+                        candidature=candidature,
+                        question=question,
+                        defaults={"valeur": ""},
+                    )
+                    reponse_question.options_selectionnees.all().delete()
+
+                    if question.type_question in types_avec_options:
+                        options = reponse_data.get("options", [])
+
+                        if question.type_question == Question.TypeQuestion.CHECKBOX:
+                            for option in options:
+                                ReponseOption.objects.create(reponse=reponse_question, option=option)
+                        else:
+                            option = options[0]
+                            reponse_question.valeur = option.valeur
+                            reponse_question.save()
+                            ReponseOption.objects.create(reponse=reponse_question, option=option)
+                    else:
+                        valeur = reponse_data.get("valeur", "")
+                        reponse_question.valeur = valeur
+                        reponse_question.save()
+
+                    result_reponses.append(reponse_question)
+
+            output_serializer = ReponseCandidatureSerializer({
+                "candidature": candidature.id,
+                "reponses": result_reponses,
+            })
+            return Response(output_serializer.data, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            return Response(
+                {"detail": str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+
+class CandidatureReponsesView(viewsets.ViewSet):
+    permission_classes = [permissions.IsAuthenticated, IsAdministrateur]
+
+    def list(self, request, candidature_id=None):
+        try:
+            candidature = Candidature.objects.get(id=candidature_id)
+        except Candidature.DoesNotExist:
+            return Response(
+                {"detail": "Candidature introuvable."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        reponses = ReponseQuestion.objects.filter(candidature=candidature).select_related("question").prefetch_related("options_selectionnees__option")
+        serializer = ReponseCandidatureSerializer({
+            "candidature": candidature.id,
+            "reponses": reponses,
+        })
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 class SectionFormulaireViewSet(viewsets.ModelViewSet):
     # API pour la gestion des sections
     serializer_class= SectionFormulaireSerializer
@@ -217,3 +360,23 @@ class OptionQuestionViewSet(viewsets.ModelViewSet):
         return [
             IsAuthenticated(),
         ]
+
+
+class ReponseQuestionViewSet(viewsets.ModelViewSet):
+    queryset = ReponseQuestion.objects.all()
+    serializer_class = ReponseQuestionSerializer
+
+    def get_permissions(self):
+        if self.action in ["create", "update", "partial_update", "destroy"]:
+            return [IsAuthenticated(), IsAdministrateur()]
+        return [IsAuthenticated()]
+
+
+class ReponseOptionViewSet(viewsets.ModelViewSet):
+    queryset = ReponseOption.objects.all()
+    serializer_class = ReponseOptionSerializer
+
+    def get_permissions(self):
+        if self.action in ["create", "update", "partial_update", "destroy"]:
+            return [IsAuthenticated(), IsAdministrateur()]
+        return [IsAuthenticated()]

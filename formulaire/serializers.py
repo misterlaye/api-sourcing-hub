@@ -1,6 +1,55 @@
 from rest_framework import serializers
 
-from .models import Formulaire , SectionFormulaire ,Question, OptionQuestion
+from candidature.models import Candidature
+from .models import Formulaire , SectionFormulaire ,Question, OptionQuestion, ReponseQuestion, ReponseOption
+
+
+class ReponseOptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model= ReponseOption
+        fields=["id","reponse","option",]
+        read_only_fields = ["id",]
+
+
+class ReponseQuestionSerializer(serializers.ModelSerializer):
+    options_selectionnees=ReponseOptionSerializer(many=True,read_only=True,)
+    class Meta:
+        model=ReponseQuestion
+        fields = ["id","candidature","question","valeur","date_reponse","options_selectionnees",]
+        read_only_fields = ["id","date_reponse",]
+
+
+class ReponseQuestionCreateSerializer(serializers.Serializer):
+    question = serializers.PrimaryKeyRelatedField(queryset=Question.objects.all())
+    valeur = serializers.CharField(required=False, allow_blank=True)
+    options = serializers.PrimaryKeyRelatedField(queryset=OptionQuestion.objects.all(), many=True, required=False)
+
+
+class ReponseSubmissionSerializer(serializers.Serializer):
+    reponses = ReponseQuestionCreateSerializer(many=True)
+
+
+class ReponseOptionDetailSerializer(serializers.Serializer):
+    id = serializers.IntegerField(source='option.id')
+    texte = serializers.CharField(source='option.texte')
+    valeur = serializers.CharField(source='option.valeur')
+
+
+class ReponseQuestionDetailSerializer(serializers.ModelSerializer):
+    question = serializers.IntegerField(source='question.id')
+    question_texte = serializers.CharField(source='question.texte')
+    type_question = serializers.CharField(source='question.type_question')
+    valeur = serializers.CharField()
+    options = ReponseOptionDetailSerializer(source='options_selectionnees', many=True)
+
+    class Meta:
+        model = ReponseQuestion
+        fields = ["question", "question_texte", "type_question", "valeur", "options"]
+
+
+class ReponseCandidatureSerializer(serializers.Serializer):
+    candidature = serializers.IntegerField()
+    reponses = ReponseQuestionDetailSerializer(many=True)
 
 
 class OptionQuestionSerializer(serializers.ModelSerializer):
@@ -34,7 +83,7 @@ class SectionFormulaireSerializer(serializers.ModelSerializer):
 
    # Les questions de la section sont retournées
    # directement dans la réponse JSON.
-    
+     
     questions=QuestionSerializer(many=True,read_only=True,)
     class Meta:
         model = SectionFormulaire
