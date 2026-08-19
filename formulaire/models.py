@@ -101,3 +101,67 @@ class OptionQuestion(models.Model):
 
     def __str__(self):
         return self.texte
+
+
+class ReponseQuestion(models.Model):
+    """
+    Réponse d'une candidature à une question.
+    """
+
+    candidature = models.ForeignKey(
+        "candidature.Candidature",
+        on_delete=models.CASCADE,
+        related_name="reponses",
+    )
+
+    question = models.ForeignKey(
+        Question,
+        on_delete=models.CASCADE,
+        related_name="reponses",
+    )
+
+    valeur = models.TextField(blank=True)
+
+    date_reponse = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["candidature", "question"],
+                name="unique_candidature_question",
+            )
+        ]
+        ordering = ["question__ordre", "question__id"]
+
+    def __str__(self):
+        return f"Réponse de {self.candidature} à {self.question}"
+
+
+class ReponseOption(models.Model):
+    """
+    Option sélectionnée par une candidature pour une réponse.
+    """
+
+    reponse = models.ForeignKey(
+        ReponseQuestion,
+        on_delete=models.CASCADE,
+        related_name="options_selectionnees",
+    )
+
+    option = models.ForeignKey(
+        OptionQuestion,
+        on_delete=models.CASCADE,
+        related_name="reponses",
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["reponse", "option"],
+                name="unique_reponse_option",
+            )
+        ]
+        ordering = ["option__ordre", "option__id"]
+
+    def __str__(self):
+        return f"Option {self.option} pour réponse {self.reponse}"
