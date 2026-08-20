@@ -5,6 +5,22 @@ from rest_framework import serializers
 from .models import User
 
 
+class UserSerializer(serializers.ModelSerializer):
+    """Serializer pour la liste, le détail et la modification des utilisateurs.
+
+    Expose les champs nécessaires à l'affichage côté frontend.
+    Le mot de passe et les tokens ne sont jamais inclus.
+    """
+    class Meta:
+        model = User
+        fields = [
+            'id', 'email', 'first_name', 'last_name', 'role',
+            'status', 'is_active', 'phone_number', 'is_profile_complete',
+            'date_joined', 'last_invited_at'
+        ]
+        read_only_fields = ['id', 'date_joined', 'last_invited_at']
+
+
 class AccountActivationSerializer(serializers.Serializer):
     token = serializers.CharField(required=True)
     password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})

@@ -17,7 +17,9 @@ class User(AbstractBaseUser, PermissionsMixin):
         SUSPENDED = 'SUSPENDED', _('Suspendu')
 
     email = models.EmailField(_('adresse email'), unique=True)
-    
+    first_name = models.CharField(_('prénom'), max_length=150, blank=True, default='')
+    last_name = models.CharField(_('nom'), max_length=150, blank=True, default='')
+    phone_number = models.CharField(_('numéro de téléphone'), max_length=20, blank=True, default='')
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.CANDIDAT)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.INVITED)
     is_profile_complete = models.BooleanField(default=False)
@@ -51,7 +53,10 @@ class AuditLog(models.Model):
         ACCOUNT_ACTIVATED = 'ACCOUNT_ACTIVATED', _('Compte Activé')
         LOGIN_SUCCESS = 'LOGIN_SUCCESS', _('Connexion Réussie')
         LOGIN_FAILED = 'LOGIN_FAILED', _('Échec Connexion')
-        # On en rajoutera au besoin...
+        LOGOUT = 'LOGOUT', _('Déconnexion')
+        PROFILE_COMPLETED = 'PROFILE_COMPLETED', _('Profil Complété')
+        PASSWORD_RESET_REQUESTED = 'PASSWORD_RESET_REQUESTED', _('Demande Réinitialisation Mot de Passe')
+        PASSWORD_RESET_COMPLETED = 'PASSWORD_RESET_COMPLETED', _('Mot de Passe Réinitialisé')
 
     class Status(models.TextChoices):
         SUCCESS = 'SUCCESS', _('Succès')

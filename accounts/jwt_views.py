@@ -88,7 +88,7 @@ class LogoutView(APIView):
 
         AuditLog.objects.create(
             actor=request.user,
-            action=AuditLog.Action.LOGIN_SUCCESS,  # reuse existing action; consider adding LOGOUT
+            action=AuditLog.Action.LOGOUT,
             target=request.user.email,
             ip_address=get_client_ip(request),
             user_agent=request.META.get('HTTP_USER_AGENT', '')

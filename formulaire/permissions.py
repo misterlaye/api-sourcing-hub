@@ -21,7 +21,7 @@ class IsAdministrateur(BasePermission):
         if role:
             return str(role).lower()in[
                 "admin",
-                "administraeur",
+                "administrateur",
             ]
         return False
 

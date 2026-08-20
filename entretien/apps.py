@@ -1,0 +1,7 @@
+from django.apps import AppConfig
+
+
+class EntretienConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'entretien'
+    verbose_name = 'Gestion des Entretiens'

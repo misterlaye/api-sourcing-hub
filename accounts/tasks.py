@@ -86,7 +86,6 @@ L'équipe Sourcing Hub
         recipient_list=[user.email],
         html_message=html_message,
         fail_silently=False,
-        using='default',
     )
 
 
@@ -164,5 +163,4 @@ L'équipe Sourcing Hub
         recipient_list=[user.email],
         html_message=html_message,
         fail_silently=False,
-        using='default',
     )

@@ -177,3 +177,64 @@ class ConfirmPasswordResetView(APIView):
             )
         except ValueError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+from rest_framework import viewsets, permissions
+from rest_framework.decorators import action
+from .serializers import UserSerializer
+
+
+class UserViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet d'administration pour lister, inviter, consulter et modifier les utilisateurs.
+    Permet également à l'utilisateur connecté de consulter/modifier son profil via /me/.
+    """
+    queryset = User.objects.all().order_by('-date_joined')
+    serializer_class = UserSerializer
+
+    def get_permissions(self):
+        if self.action == 'me':
+            return [permissions.IsAuthenticated()]
+        return [IsAccountActive(), HasRole.with_roles(User.Role.ADMIN)()]
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return AdminUserCreateSerializer
+        return UserSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+
+        email = serializer.validated_data['email']
+        role = serializer.validated_data['role']
+
+        try:
+            user, token = create_user_and_invite(
+                email=email,
+                role=role,
+                actor=request.user,
+                ip_address=get_client_ip(request),
+                user_agent=request.META.get('HTTP_USER_AGENT', '')
+            )
+            return Response(
+                {
+                    "detail": "Utilisateur créé avec succès et invitation envoyée.",
+                    "user": UserSerializer(user).data
+                },
+                status=status.HTTP_201_CREATED
+            )
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['get', 'patch'], url_path='me')
+    def me(self, request):
+        if request.method == 'GET':
+            serializer = UserSerializer(request.user)
+            return Response(serializer.data)
+        serializer = UserSerializer(request.user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        return Response(UserSerializer(user).data)
+
+

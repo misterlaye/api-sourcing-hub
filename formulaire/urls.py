@@ -2,6 +2,8 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from .views import ( FormulaireViewSet, SectionFormulaireViewSet, QuestionViewSet, OptionQuestionViewSet, ReponseQuestionViewSet, ReponseOptionViewSet, CandidatureReponsesView,)
+app_name = "formulaire"
+
 # Création du routeur Django REST Framework.
 router = DefaultRouter()
 # Gestion des formulaires.

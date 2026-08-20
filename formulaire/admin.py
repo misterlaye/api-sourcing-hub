@@ -1,5 +1,32 @@
 from django.contrib import admin
 from .models import ( Formulaire,SectionFormulaire,Question,OptionQuestion, ReponseQuestion, ReponseOption,)
+
+
+class SectionFormulaireInline(admin.TabularInline):
+    model = SectionFormulaire
+    extra = 1
+
+
+class QuestionInline(admin.TabularInline):
+    model = Question
+    extra = 1
+
+
+class OptionQuestionInline(admin.TabularInline):
+    model = OptionQuestion
+    extra = 1
+
+
+class ReponseOptionInline(admin.TabularInline):
+    model = ReponseOption
+    extra = 0
+
+
+class ReponseQuestionInline(admin.TabularInline):
+    model = ReponseQuestion
+    extra = 0
+
+
 @admin.register(Formulaire)
 class FormulaireAdmin(admin.ModelAdmin):
     """
@@ -23,6 +50,9 @@ class FormulaireAdmin(admin.ModelAdmin):
     ordering = (
         "-date_creation",
     )
+    inlines = [SectionFormulaireInline]
+
+
 @admin.register(SectionFormulaire)
 class SectionFormulaireAdmin(admin.ModelAdmin):
     """
@@ -44,6 +74,9 @@ class SectionFormulaireAdmin(admin.ModelAdmin):
         "formulaire",
         "ordre",
     )
+    inlines = [QuestionInline]
+
+
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
     """
@@ -62,12 +95,13 @@ class QuestionAdmin(admin.ModelAdmin):
     )
     search_fields = (
         "texte",
-        "description",
     )
     ordering = (
         "section",
         "ordre",
     )
+    inlines = [OptionQuestionInline]
+
 
 @admin.register(OptionQuestion)
 class OptionQuestionAdmin(admin.ModelAdmin):
@@ -91,6 +125,7 @@ class OptionQuestionAdmin(admin.ModelAdmin):
         "question",
         "ordre",
     )
+
 
 @admin.register(ReponseQuestion)
 class ReponseQuestionAdmin(admin.ModelAdmin):
@@ -117,6 +152,7 @@ class ReponseQuestionAdmin(admin.ModelAdmin):
     ordering = (
         "-date_reponse",
     )
+    inlines = [ReponseOptionInline]
 
 
 @admin.register(ReponseOption)

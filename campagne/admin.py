@@ -1,6 +1,5 @@
 from django.contrib import admin
-from django.forms import forms
-from .models import Referentiel, Campagne, CritereSelection, ReunionInformation
+from .models import Referentiel, Campagne, CritereSelection, ReunionInformation, CreneauRI
 
 @admin.register(Referentiel)
 class ReferentielModelAdmin(admin.ModelAdmin):
@@ -19,6 +18,19 @@ class CampagneModelAdmin(admin.ModelAdmin):
 class CritereSelectionModelAdmin(admin.ModelAdmin):
     list_display = ('name','description')
 
+class CreneauRIInline(admin.TabularInline):
+    model = CreneauRI
+    extra = 1
+    fields = ('heure_debut', 'heure_fin', 'capacite')
+
 @admin.register(ReunionInformation)
 class ReunionInformationModelAdmin(admin.ModelAdmin):
-    list_display = ('ri_date', 'begin_hour', 'end_hour','location', 'campagne')
+    list_display = ('titre', 'date', 'lieu', 'campagne', 'actif')
+    list_filter = ('actif', 'date')
+    search_fields = ('titre', 'lieu', 'campagne__title')
+    inlines = [CreneauRIInline]
+
+@admin.register(CreneauRI)
+class CreneauRIModelAdmin(admin.ModelAdmin):
+    list_display = ('reunion', 'heure_debut', 'heure_fin', 'capacite')
+    list_filter = ('reunion',)

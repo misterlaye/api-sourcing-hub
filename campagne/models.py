@@ -35,7 +35,7 @@ class Campagne(models.Model):
 
     )
     referentiel = models.ForeignKey(Referentiel, on_delete=models.PROTECT, related_name='campagnes')
-    criteres = models.ManyToManyField(CritereSelection, related_name='campagnes', null=True)
+    criteres = models.ManyToManyField(CritereSelection, related_name='campagnes', blank=True)
 
 
     def __str__(self):
@@ -43,9 +43,41 @@ class Campagne(models.Model):
 
 
 class ReunionInformation(models.Model):
-    ri_date = models.DateField()
-    begin_hour = models.TimeField()
-    end_hour = models.TimeField()
-    location = models.CharField(max_length=255) 
-    campagne = models.ForeignKey(Campagne, on_delete=models.CASCADE, related_name='ri')
- 
+    campagne = models.OneToOneField(
+        "campagne.Campagne",
+        on_delete=models.CASCADE,
+        related_name="reunion_information"
+    )
+    titre = models.CharField(max_length=255)
+    date = models.DateField()
+    lieu = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    actif = models.BooleanField(default=True)
+    date_creation = models.DateTimeField(auto_now_add=True)
+    date_modification = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["date"]
+
+    def __str__(self):
+        return f"{self.titre} - {self.campagne}"
+
+
+class CreneauRI(models.Model):
+    reunion = models.ForeignKey(
+        ReunionInformation,
+        on_delete=models.CASCADE,
+        related_name="creneaux"
+    )
+    nom = models.CharField(max_length=100, blank=True, default="", help_text="Nom du créneau ou du groupe (ex: Groupe matin, Groupe soir)")
+    heure_debut = models.TimeField()
+    heure_fin = models.TimeField()
+    capacite = models.PositiveIntegerField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["heure_debut"]
+
+    def __str__(self):
+        if self.nom:
+            return f"{self.nom} ({self.heure_debut} - {self.heure_fin})"
+        return f"{self.heure_debut} - {self.heure_fin}"

@@ -11,7 +11,7 @@ class Formulaire(models.Model):
     publier=models.BooleanField(default=False)
      # Permet d'activer ou désactiver le formulaire.
     actif = models.BooleanField(default=True)
-    date_creation= models.DateTimeField(auto_now=True)
+    date_creation= models.DateTimeField(auto_now_add=True)
     date_modification=models.DateTimeField(auto_now=True)
 
     class Meta:

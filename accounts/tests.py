@@ -65,7 +65,7 @@ class AccountsAPITests(APITestCase):
     @patch('accounts.tasks.send_invitation_email_task.delay')
     def test_admin_invite_user(self, mock_email_task):
         self.client.force_authenticate(user=self.admin_user)
-        url = reverse('accounts:user-invite')
+        url = reverse('accounts:user-list')
         response = self.client.post(url, {
             'email': 'new_member@simplon.co',
             'role': 'JURY'
@@ -75,7 +75,7 @@ class AccountsAPITests(APITestCase):
 
     def test_candidate_cannot_invite_user(self):
         self.client.force_authenticate(user=self.candidate_user)
-        url = reverse('accounts:user-invite')
+        url = reverse('accounts:user-list')
         response = self.client.post(url, {
             'email': 'hacker@simplon.co',
             'role': 'ADMIN'
@@ -149,3 +149,36 @@ class AccountsAPITests(APITestCase):
 
         self.candidate_user.refresh_from_db()
         self.assertTrue(self.candidate_user.check_password('BrandNewPassword123!'))
+
+    def test_get_and_update_me(self):
+        self.client.force_authenticate(user=self.candidate_user)
+        url = reverse('accounts:user-me')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['email'], 'candidat@simplon.co')
+
+        # Patch me
+        patch_res = self.client.patch(url, {
+            'first_name': 'Bineta',
+            'last_name': 'Badiane',
+            'phone_number': '+221770000000',
+        })
+        self.assertEqual(patch_res.status_code, status.HTTP_200_OK)
+        self.candidate_user.refresh_from_db()
+        self.assertEqual(self.candidate_user.first_name, 'Bineta')
+        self.assertEqual(self.candidate_user.last_name, 'Badiane')
+
+    def test_admin_can_list_and_update_user(self):
+        self.client.force_authenticate(user=self.admin_user)
+        # List
+        list_res = self.client.get(reverse('accounts:user-list'))
+        self.assertEqual(list_res.status_code, status.HTTP_200_OK)
+
+        # Update
+        detail_url = reverse('accounts:user-detail', kwargs={'pk': self.candidate_user.pk})
+        update_res = self.client.patch(detail_url, {
+            'first_name': 'UpdatedCandidate',
+        })
+        self.assertEqual(update_res.status_code, status.HTTP_200_OK)
+        self.candidate_user.refresh_from_db()
+        self.assertEqual(self.candidate_user.first_name, 'UpdatedCandidate')

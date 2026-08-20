@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'campagne',
     'formulaire',
     'candidature',
+    'entretien',
 ]
 
 MIDDLEWARE = [
@@ -178,3 +179,12 @@ CELERY_BROKER_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
+
+import sys
+if 'test' in sys.argv or 'pytest' in sys.argv[0]:
+    PASSWORD_HASHERS = [
+        'django.contrib.auth.hashers.MD5PasswordHasher',
+    ]
+    EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
+    CELERY_TASK_ALWAYS_EAGER = True
+    CELERY_TASK_EAGER_PROPAGATES = True

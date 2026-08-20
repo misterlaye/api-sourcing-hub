@@ -62,7 +62,7 @@ def publier_formulaire(formulaire):
         update_fields=[
             "publier",
             "actif",
-            "updated_at",
+            "date_modification",
         ]
     )
 
@@ -80,7 +80,7 @@ def depublier_formulaire(formulaire):
     formulaire.save(
         update_fields=[
             "publier",
-            "updated_at",
+            "date_modification",
         ]
     )
 
