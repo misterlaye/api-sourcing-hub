@@ -1,6 +1,6 @@
 import logging
 from django.conf import settings
-from django.core.mail import EmailMessage
+from django.core.mail import EmailMultiAlternatives
 
 from .pdf_service import generate_convocation_pdf
 
@@ -67,12 +67,16 @@ L'équipe SOURCING HUB
 
     from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "contact@sourcinghub.com")
 
-    email = EmailMessage(
+    # Envoyer un email avec alternative HTML (Brevo requiert du contenu HTML)
+    html_body = body.replace('\n', '<br/>')
+
+    email = EmailMultiAlternatives(
         subject=subject,
         body=body,
         from_email=from_email,
         to=[candidature.email],
     )
+    email.attach_alternative(html_body, "text/html")
     email.attach(filename, pdf_bytes, "application/pdf")
 
     try:
