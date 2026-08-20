@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models import Prefetch
 from django.shortcuts import render
 from django.db import transaction
@@ -14,6 +15,28 @@ from .serializers import FormulaireSerializer, FormulairePreviewSerializer, Sect
 from .permissions import IsAdministrateur
 from .services import publier_formulaire,depublier_formulaire
 from candidature.models import Candidature
+
+from .models import (
+    Formulaire,
+    OptionQuestion,
+    Question,
+    ReponseOption,
+    ReponseQuestion,
+    SectionFormulaire,
+)
+from .permissions import IsAdministrateur
+from .serializers import (
+    FormulairePreviewSerializer,
+    FormulaireSerializer,
+    OptionQuestionSerializer,
+    QuestionSerializer,
+    ReponseCandidatureSerializer,
+    ReponseOptionSerializer,
+    ReponseQuestionSerializer,
+    ReponseSubmissionSerializer,
+    SectionFormulaireSerializer,
+)
+from .services import depublier_formulaire, publier_formulaire
 
 
 class FormulaireViewSet(viewsets.ModelViewSet):
@@ -81,7 +104,25 @@ class FormulaireViewSet(viewsets.ModelViewSet):
                 ),
             )
         )
-
+    def get_permissions(self):
+        # les Operateur sont revervees au administrateur
+        if self.action in [
+            "create",
+            "update",
+            "partial_update",
+            "destroy",
+            "publier",
+            "depublier",
+        ] :
+            return [
+                IsAdministrateur(),
+                permissions.IsAuthenticated(),
+            ]
+        # Les opérations de lecture nécessitent
+        # seulement une authentification.
+        return [
+            permissions.IsAuthenticated(),
+        ]
     def perform_create(self, serializer):
         campagne = serializer.validated_data["campagne"]
         if hasattr(campagne, "formulaire"):
@@ -460,12 +501,12 @@ class SectionFormulaireViewSet(viewsets.ModelViewSet):
             "destroy",
         ]:
             return [
-                IsAuthenticated(),
+                permissions.IsAuthenticated(),
                 IsAdministrateur(),
             ]
 
         return [
-            IsAuthenticated(),
+            permissions.IsAuthenticated(),
         ]    
 class QuestionViewSet(viewsets.ModelViewSet):
     #API de gestion des questions.
@@ -494,12 +535,12 @@ class QuestionViewSet(viewsets.ModelViewSet):
             "destroy",
         ]:
             return [
-                IsAuthenticated(),
+                permissions.IsAuthenticated(),
                 IsAdministrateur(),
             ]
 
         return [
-            IsAuthenticated(),
+            permissions.IsAuthenticated(),
         ]
 class OptionQuestionViewSet(viewsets.ModelViewSet):
     #API de gestion des options des questions.
@@ -528,12 +569,12 @@ class OptionQuestionViewSet(viewsets.ModelViewSet):
             "destroy",
         ]:
             return [
-                IsAuthenticated(),
+                permissions.IsAuthenticated(),
                 IsAdministrateur(),
             ]
 
         return [
-            IsAuthenticated(),
+            permissions.IsAuthenticated(),
         ]
 
 
@@ -543,8 +584,8 @@ class ReponseQuestionViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ["create", "update", "partial_update", "destroy"]:
-            return [IsAuthenticated(), IsAdministrateur()]
-        return [IsAuthenticated()]
+            return [permissions.IsAuthenticated(), IsAdministrateur()]
+        return [permissions.IsAuthenticated()]
 
 
 class ReponseOptionViewSet(viewsets.ModelViewSet):
@@ -553,5 +594,5 @@ class ReponseOptionViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ["create", "update", "partial_update", "destroy"]:
-            return [IsAuthenticated(), IsAdministrateur()]
-        return [IsAuthenticated()]
+            return [permissions.IsAuthenticated(), IsAdministrateur()]
+        return [permissions.IsAuthenticated()]
