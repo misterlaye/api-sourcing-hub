@@ -1,17 +1,33 @@
-from django.db.models import Prefetch
-from django.shortcuts import render
 from django.db import transaction
-
-# Create your views here.
-from rest_framework import status , viewsets, permissions
+from django.db.models import Prefetch
+from drf_spectacular.utils import extend_schema
+from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from drf_spectacular.utils import extend_schema
-from .models import Formulaire, SectionFormulaire, Question, OptionQuestion, ReponseQuestion, ReponseOption
-from .serializers import FormulaireSerializer, FormulairePreviewSerializer, SectionFormulaireSerializer, QuestionSerializer, OptionQuestionSerializer, ReponseSubmissionSerializer, ReponseQuestionSerializer, ReponseCandidatureSerializer, ReponseOptionSerializer
-from .permissions import IsAdministrateur
-from .services import publier_formulaire,depublier_formulaire
+
 from candidature.models import Candidature
+
+from .models import (
+    Formulaire,
+    OptionQuestion,
+    Question,
+    ReponseOption,
+    ReponseQuestion,
+    SectionFormulaire,
+)
+from .permissions import IsAdministrateur
+from .serializers import (
+    FormulairePreviewSerializer,
+    FormulaireSerializer,
+    OptionQuestionSerializer,
+    QuestionSerializer,
+    ReponseCandidatureSerializer,
+    ReponseOptionSerializer,
+    ReponseQuestionSerializer,
+    ReponseSubmissionSerializer,
+    SectionFormulaireSerializer,
+)
+from .services import depublier_formulaire, publier_formulaire
 
 
 class FormulaireViewSet(viewsets.ModelViewSet):
@@ -44,12 +60,12 @@ class FormulaireViewSet(viewsets.ModelViewSet):
         ] :
             return [
                 IsAdministrateur(),
-                IsAuthenticated(),
+                permissions.IsAuthenticated(),
             ]
         # Les opérations de lecture nécessitent
         # seulement une authentification.
         return [
-            IsAuthenticated(),
+            permissions.IsAuthenticated(),
         ]
     def perform_create(self, serializer):
         # On vérifie qu'une campagne n'a pas déjà  un formulaire.
@@ -285,12 +301,12 @@ class SectionFormulaireViewSet(viewsets.ModelViewSet):
             "destroy",
         ]:
             return [
-                IsAuthenticated(),
+                permissions.IsAuthenticated(),
                 IsAdministrateur(),
             ]
 
         return [
-            IsAuthenticated(),
+            permissions.IsAuthenticated(),
         ]    
 class QuestionViewSet(viewsets.ModelViewSet):
     #API de gestion des questions.
@@ -319,12 +335,12 @@ class QuestionViewSet(viewsets.ModelViewSet):
             "destroy",
         ]:
             return [
-                IsAuthenticated(),
+                permissions.IsAuthenticated(),
                 IsAdministrateur(),
             ]
 
         return [
-            IsAuthenticated(),
+            permissions.IsAuthenticated(),
         ]
 class OptionQuestionViewSet(viewsets.ModelViewSet):
     #API de gestion des options des questions.
@@ -353,12 +369,12 @@ class OptionQuestionViewSet(viewsets.ModelViewSet):
             "destroy",
         ]:
             return [
-                IsAuthenticated(),
+                permissions.IsAuthenticated(),
                 IsAdministrateur(),
             ]
 
         return [
-            IsAuthenticated(),
+            permissions.IsAuthenticated(),
         ]
 
 
@@ -368,8 +384,8 @@ class ReponseQuestionViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ["create", "update", "partial_update", "destroy"]:
-            return [IsAuthenticated(), IsAdministrateur()]
-        return [IsAuthenticated()]
+            return [permissions.IsAuthenticated(), IsAdministrateur()]
+        return [permissions.IsAuthenticated()]
 
 
 class ReponseOptionViewSet(viewsets.ModelViewSet):
@@ -378,5 +394,5 @@ class ReponseOptionViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ["create", "update", "partial_update", "destroy"]:
-            return [IsAuthenticated(), IsAdministrateur()]
-        return [IsAuthenticated()]
+            return [permissions.IsAuthenticated(), IsAdministrateur()]
+        return [permissions.IsAuthenticated()]
