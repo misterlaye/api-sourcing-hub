@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.db.models import Sum
 
 
 class Entretien(models.Model):
@@ -78,10 +79,16 @@ class Entretien(models.Model):
     class Meta:
         ordering = ["-date", "heure_debut"]
         verbose_name = "Session d'entretien"
-        verbose_name_plural = "Sessions d'entretiens"
+        verbose_name_plural = "Sessions d'entretien"
 
     def __str__(self):
         return f"Entretien {self.get_type_display()} - {self.campagne.title} ({self.date})"
+
+    @property
+    def score_total(self):
+        """Calcule le score total de l'entretien en fonction des réponses des jurys."""
+        result = ReponseEntretien.objects.filter(entretien=self).aggregate(total=Sum("note"))
+        return result["total"] or 0
 
 
 class CreneauEntretien(models.Model):
@@ -135,7 +142,7 @@ class CreneauEntretien(models.Model):
     class Meta:
         ordering = ["heure_debut"]
         verbose_name = "Créneau d'entretien"
-        verbose_name_plural = "Créneaux d'entretiens"
+        verbose_name_plural = "Créneaux d'entretien"
 
     def __str__(self):
         cand_str = f" - {self.candidature.prenom} {self.candidature.nom}" if self.candidature else ""
@@ -225,3 +232,95 @@ class ConvocationEntretien(models.Model):
 
     def __str__(self):
         return f"Convocation {self.get_type_display()} - {self.candidature.prenom} {self.candidature.nom} ({self.date} à {self.heure_debut.strftime('%H:%M')})"
+
+
+class QuestionEntretien(models.Model):
+    """
+    Question d'entretien créée par l'administrateur pour une campagne.
+    Les questions sont associées aux entretiens planifiés de la campagne.
+    """
+
+    class TypeQuestion(models.TextChoices):
+        TEXT = "TEXT", "Texte court"
+        TEXTAREA = "TEXTAREA", "Texte long"
+        NOTE = "NOTE", "Note"
+        COMMENTAIRE = "COMMENTAIRE", "Commentaire"
+        CHOIX_UNIQUE = "CHOIX_UNIQUE", "Choix unique"
+        CHOIX_MULTIPLE = "CHOIX_MULTIPLE", "Choix multiple"
+
+    campagne = models.ForeignKey(
+        "campagne.Campagne",
+        on_delete=models.CASCADE,
+        related_name="questions_entretien",
+        help_text="Campagne de recrutement associée."
+    )
+    entretiens = models.ManyToManyField(
+        "entretien.Entretien",
+        related_name="questions_entretien",
+        blank=True,
+        help_text="Sessions d'entretien auxquelles cette question est associée."
+    )
+    intitule = models.CharField(max_length=255, help_text="Intitulé de la question.")
+    type_question = models.CharField(
+        max_length=30,
+        choices=TypeQuestion.choices,
+        default=TypeQuestion.TEXT,
+        help_text="Type de réponse attendue."
+    )
+    ordre = models.PositiveIntegerField(default=0, help_text="Ordre d'affichage des questions.")
+    obligatoire = models.BooleanField(default=False, help_text="Question obligatoire.")
+    note_max = models.PositiveIntegerField(default=10, help_text="Note maximale attribuable.")
+    date_creation = models.DateTimeField(auto_now_add=True)
+    date_modification = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["ordre", "id"]
+        verbose_name = "Question d'entretien"
+        verbose_name_plural = "Questions d'entretien"
+
+    def __str__(self):
+        return self.intitule
+
+
+class ReponseEntretien(models.Model):
+    """
+    Réponse d'un jury à une question lors d'un entretien donné.
+    """
+
+    entretien = models.ForeignKey(
+        "entretien.Entretien",
+        on_delete=models.CASCADE,
+        related_name="reponses_entretien",
+        help_text="Session d'entretien concernée."
+    )
+    question = models.ForeignKey(
+        "entretien.QuestionEntretien",
+        on_delete=models.CASCADE,
+        related_name="reponses",
+        help_text="Question à laquelle le jury répond."
+    )
+    jury = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="reponses_jury",
+        help_text="Membre du jury qui a répondu."
+    )
+    reponse = models.TextField(blank=True, default="", help_text="Réponse textuelle du jury.")
+    note = models.PositiveIntegerField(null=True, blank=True, help_text="Note attribuée par le jury.")
+    commentaire = models.TextField(blank=True, default="", help_text="Commentaire du jury.")
+    date_creation = models.DateTimeField(auto_now_add=True)
+    date_modification = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["entretien", "question", "jury"],
+                name="unique_reponse_entretien_question_jury"
+            )
+        ]
+        ordering = ["question__ordre", "question__id"]
+        verbose_name = "Réponse d'entretien"
+        verbose_name_plural = "Réponses d'entretien"
+
+    def __str__(self):
+        return f"Réponse de {self.jury} à {self.question} ({self.entretien})"

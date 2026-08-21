@@ -5,6 +5,7 @@ from .views import (
     ConvocationViewSet,
     ConvocationRIViewSet,
     CandidateConvocationsViewSet,
+    MesCandidaturesViewSet,
 )
 
 app_name = "candidature"
@@ -15,5 +16,6 @@ router.register(r"admin/candidatures", CandidatureAdminViewSet, basename="candid
 router.register(r"convocations", ConvocationViewSet, basename="convocations")
 router.register(r"convocations-ri", ConvocationRIViewSet, basename="convocations-ri")
 router.register(r"candidat/mes-convocations", CandidateConvocationsViewSet, basename="candidat-convocations")
+router.register(r"candidat/mes-candidatures", MesCandidaturesViewSet, basename="candidat-candidatures")
 
 urlpatterns = router.urls

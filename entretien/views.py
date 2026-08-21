@@ -4,15 +4,18 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 
-from accounts.permissions import HasRole
+from accounts.permissions import HasRole, IsAccountActive
 from accounts.models import User
 from formulaire.permissions import IsAdministrateur
-from .models import Entretien, CreneauEntretien, ConvocationEntretien
+from .models import Entretien, CreneauEntretien, ConvocationEntretien, QuestionEntretien, ReponseEntretien
 from .serializers import (
     EntretienSerializer,
     CreneauEntretienSerializer,
     ConvocationEntretienSerializer,
     ConfirmationEntretienSerializer,
+    QuestionEntretienSerializer,
+    ReponseEntretienSerializer,
+    ReponseEntretienWriteSerializer,
 )
 from .services import (
     confirmer_et_envoyer_convocations,
@@ -163,6 +166,94 @@ class EntretienViewSet(viewsets.ModelViewSet):
             "planning": planning,
         })
 
+    @action(detail=True, methods=["get"], url_path="questions")
+    def questions(self, request, pk=None):
+        """
+        Retourne les questions associées à cet entretien.
+        Accessible aux jurys assignés et aux administrateurs.
+        """
+        entretien = self.get_object()
+        user = request.user
+
+        is_admin = getattr(user, "is_staff", False) or getattr(user, "role", None) in ["ADMIN", "ADMINISTRATEUR"]
+        is_assigned_jury = entretien.jurys.filter(id=user.id).exists()
+
+        if not is_admin and not is_assigned_jury:
+            return Response(
+                {"detail": "Vous n'êtes pas autorisé à consulter les questions de cet entretien."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        questions = entretien.questions_entretien.all()
+        serializer = QuestionEntretienSerializer(questions, many=True)
+        return Response({
+            "entretien_id": entretien.id,
+            "campagne": entretien.campagne.title,
+            "type": entretien.type,
+            "date": entretien.date,
+            "score_total": entretien.score_total,
+            "questions": serializer.data,
+        })
+
+    @action(detail=True, methods=["get", "post"], url_path="reponses")
+    def reponses(self, request, pk=None):
+        """
+        GET : Retourne les réponses du jury connecté pour cet entretien.
+        POST : Enregistre / met à jour une réponse du jury connecté pour cet entretien.
+        """
+        entretien = self.get_object()
+        user = request.user
+
+        is_admin = getattr(user, "is_staff", False) or getattr(user, "role", None) in ["ADMIN", "ADMINISTRATEUR"]
+        is_assigned_jury = entretien.jurys.filter(id=user.id).exists()
+
+        if not is_admin and not is_assigned_jury:
+            return Response(
+                {"detail": "Vous n'êtes pas autorisé à accéder aux réponses de cet entretien."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if request.method == "GET":
+            if is_admin:
+                qs = ReponseEntretien.objects.filter(entretien=entretien).select_related("question", "jury")
+            else:
+                qs = ReponseEntretien.objects.filter(entretien=entretien, jury=user).select_related("question", "jury")
+            serializer = ReponseEntretienSerializer(qs, many=True)
+            return Response({
+                "entretien_id": entretien.id,
+                "score_total": entretien.score_total,
+                "reponses": serializer.data,
+            })
+
+        if request.method == "POST":
+            serializer = ReponseEntretienWriteSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            question = serializer.validated_data["question"]
+
+            if not entretien.questions_entretien.filter(id=question.id).exists():
+                return Response(
+                    {"detail": "Cette question n'appartient pas à cet entretien."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            reponse, _ = ReponseEntretien.objects.update_or_create(
+                entretien=entretien,
+                question=question,
+                jury=user,
+                defaults={
+                    "reponse": serializer.validated_data.get("reponse", ""),
+                    "note": serializer.validated_data.get("note"),
+                    "commentaire": serializer.validated_data.get("commentaire", ""),
+                },
+            )
+            result_serializer = ReponseEntretienSerializer(reponse)
+            return Response({
+                "success": True,
+                "message": "Réponse enregistrée avec succès.",
+                "score_total": entretien.score_total,
+                "reponse": result_serializer.data,
+            }, status=status.HTTP_200_OK)
+
 
 class CreneauEntretienViewSet(viewsets.ModelViewSet):
     """ViewSet pour la gestion granulaire des créneaux horaires d'entretiens."""
@@ -243,3 +334,69 @@ class MesConvocationsEntretienViewSet(viewsets.ReadOnlyModelViewSet):
             .filter(candidature__email=user_email)
             .order_by("date", "heure_debut")
         )
+
+
+class QuestionEntretienViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet pour la gestion des questions d'entretien.
+    - L'administrateur peut créer, modifier, supprimer et lister les questions.
+    - Tout utilisateur authentifié peut consulter les questions.
+    """
+    queryset = QuestionEntretien.objects.select_related("campagne").prefetch_related("entretiens").all()
+    serializer_class = QuestionEntretienSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ["create", "update", "partial_update", "destroy"]:
+            return [permissions.IsAuthenticated(), IsAdministrateur()]
+        return [permissions.IsAuthenticated()]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        campagne_id = self.request.query_params.get("campagne")
+        entretien_id = self.request.query_params.get("entretien")
+        if campagne_id:
+            queryset = queryset.filter(campagne_id=campagne_id)
+        if entretien_id:
+            queryset = queryset.filter(entretiens__id=entretien_id)
+        return queryset.distinct()
+
+
+class ReponseEntretienViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet pour la gestion des réponses d'entretien par les jurys.
+    - Un jury ne peut consulter / modifier que ses propres réponses.
+    - L'administrateur peut consulter toutes les réponses.
+    """
+    queryset = ReponseEntretien.objects.select_related("entretien", "question", "jury").all()
+    serializer_class = ReponseEntretienSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        user = self.request.user
+        entretien_id = self.request.query_params.get("entretien")
+        jury_id = self.request.query_params.get("jury")
+
+        is_admin = getattr(user, "is_staff", False) or getattr(user, "role", None) in ["ADMIN", "ADMINISTRATEUR"]
+
+        if not is_admin:
+            queryset = queryset.filter(jury=user)
+
+        if entretien_id:
+            queryset = queryset.filter(entretien_id=entretien_id)
+        if jury_id and is_admin:
+            queryset = queryset.filter(jury_id=jury_id)
+
+        return queryset
+
+    def get_serializer_class(self):
+        if self.action in ["create", "update", "partial_update"]:
+            return ReponseEntretienWriteSerializer
+        return ReponseEntretienSerializer
+
+    def perform_create(self, serializer):
+        serializer.save(jury=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(jury=self.request.user)

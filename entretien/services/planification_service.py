@@ -3,13 +3,19 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from entretien.models import Entretien, CreneauEntretien, ConvocationEntretien
+from entretien.models import Entretien, CreneauEntretien, ConvocationEntretien, QuestionEntretien
 from .email_service import (
     envoyer_email_convocation_candidat,
     envoyer_email_planning_jury,
 )
 
 logger = logging.getLogger(__name__)
+
+
+def associer_questions_entretien(entretien: Entretien):
+    """Associe les questions de la campagne à l'entretien confirmé."""
+    questions = QuestionEntretien.objects.filter(campagne=entretien.campagne)
+    entretien.questions_entretien.set(questions)
 
 
 def verifier_planification_entretien(entretien: Entretien):
@@ -125,6 +131,9 @@ def confirmer_et_envoyer_convocations(entretien: Entretien, envoyer_emails: bool
     # 4. Passage du statut de l'entretien à CONFIRME
     entretien.statut = Entretien.Statut.CONFIRME
     entretien.save(update_fields=["statut", "date_modification"])
+
+    # 4b. Association des questions de la campagne à l'entretien
+    associer_questions_entretien(entretien)
 
     nb_emails_candidats = 0
     nb_emails_jurys = 0

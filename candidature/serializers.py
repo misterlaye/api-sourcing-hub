@@ -96,12 +96,17 @@ class ConvocationRICreateBatchSerializer(serializers.Serializer):
 
 
 class CampagneCandidatSerializer(serializers.ModelSerializer):
+    campagne_id = serializers.IntegerField(source="campagne.id", read_only=True)
+    campagne_titre = serializers.CharField(source="campagne.title", read_only=True)
     convocation_ri = serializers.SerializerMethodField()
 
     class Meta:
         model = Candidature
         fields = [
             "id",
+            "campagne",
+            "campagne_id",
+            "campagne_titre",
             "nom",
             "prenom",
             "email",

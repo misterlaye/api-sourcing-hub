@@ -234,3 +234,22 @@ class ConvocationRIViewSet(viewsets.ReadOnlyModelViewSet):
         data = ConvocationRISerializer(convocation).data
         data["qr_code_base64"] = generate_qr_code_base64(convocation.token)
         return Response(data)
+
+
+class MesCandidaturesViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Espace candidat : permet à tout candidat connecté de consulter en temps réel
+    ses candidatures, statuts et convocations.
+    """
+    from .serializers import CampagneCandidatSerializer
+    serializer_class = CampagneCandidatSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user_email = self.request.user.email
+        return (
+            Candidature.objects.filter(email=user_email)
+            .select_related("campagne")
+            .prefetch_related("convocations_ri__creneau", "convocations")
+            .order_by("-date_soumission")
+        )

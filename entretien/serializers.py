@@ -2,7 +2,7 @@ from rest_framework import serializers
 from accounts.models import User
 from campagne.models import Campagne
 from candidature.models import Candidature
-from .models import Entretien, CreneauEntretien, ConvocationEntretien
+from .models import Entretien, CreneauEntretien, ConvocationEntretien, QuestionEntretien, ReponseEntretien
 
 
 class JurySummarySerializer(serializers.ModelSerializer):
@@ -176,3 +176,59 @@ class ConfirmationEntretienSerializer(serializers.Serializer):
         default=True,
         help_text="Déclenche l'envoi des emails aux candidats et aux jurys si True."
     )
+
+
+class QuestionEntretienSerializer(serializers.ModelSerializer):
+    """Serializer pour les questions d'entretien."""
+    campagne_titre = serializers.CharField(source="campagne.title", read_only=True)
+    type_display = serializers.CharField(source="get_type_question_display", read_only=True)
+
+    class Meta:
+        model = QuestionEntretien
+        fields = [
+            "id",
+            "campagne",
+            "campagne_titre",
+            "entretiens",
+            "intitule",
+            "type_question",
+            "type_display",
+            "ordre",
+            "obligatoire",
+            "note_max",
+            "date_creation",
+            "date_modification",
+        ]
+        read_only_fields = ["id", "date_creation", "date_modification"]
+
+
+class ReponseEntretienWriteSerializer(serializers.ModelSerializer):
+    """Serializer pour la saisie / mise à jour d'une réponse par un jury."""
+    class Meta:
+        model = ReponseEntretien
+        fields = ["question", "reponse", "note", "commentaire"]
+
+
+class ReponseEntretienSerializer(serializers.ModelSerializer):
+    """Serializer pour la consultation des réponses."""
+    jury_details = JurySummarySerializer(source="jury", read_only=True)
+    question_details = QuestionEntretienSerializer(source="question", read_only=True)
+    entretien_details = serializers.CharField(source="entretien.__str__", read_only=True)
+
+    class Meta:
+        model = ReponseEntretien
+        fields = [
+            "id",
+            "entretien",
+            "entretien_details",
+            "question",
+            "question_details",
+            "jury",
+            "jury_details",
+            "reponse",
+            "note",
+            "commentaire",
+            "date_creation",
+            "date_modification",
+        ]
+        read_only_fields = ["id", "date_creation", "date_modification"]

@@ -9,7 +9,7 @@ from rest_framework.test import APIClient
 from accounts.models import User
 from campagne.models import Campagne, Referentiel
 from candidature.models import Candidature
-from entretien.models import Entretien, CreneauEntretien, ConvocationEntretien
+from entretien.models import Entretien, CreneauEntretien, ConvocationEntretien, QuestionEntretien, ReponseEntretien
 from entretien.services import (
     verifier_planification_entretien,
     confirmer_et_envoyer_convocations,
@@ -315,3 +315,167 @@ class EntretienAPITests(TestCase):
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]["candidature_details"]["email"], self.candidat_user.email)
         self.assertEqual(response.data[0]["statut"], "confirme")
+
+
+class QuestionEntretienTests(TestCase):
+    """Tests des questions d'entretien et des réponses des jurys."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.referentiel = Referentiel.objects.create(
+            title="Développement Web & IA",
+            description="Référentiel compétences web & IA"
+        )
+        self.campagne = Campagne.objects.create(
+            title="Promotion Dev Web IA 2026",
+            description="Campagne de recrutement",
+            begin_date=date(2026, 1, 1),
+            end_date=date(2026, 12, 31),
+            status=Campagne.Status.PUBLIEE,
+            referentiel=self.referentiel,
+        )
+
+        self.admin = User.objects.create_user(
+            email="admin.questions@simplon.sn",
+            first_name="Admin",
+            last_name="Questions",
+            role=User.Role.ADMIN,
+            status=User.Status.ACTIVE,
+            is_staff=True,
+        )
+        self.jury = User.objects.create_user(
+            email="jury.questions@simplon.sn",
+            first_name="Jury",
+            last_name="Test",
+            role=User.Role.JURY,
+            status=User.Status.ACTIVE,
+        )
+        self.candidat = Candidature.objects.create(
+            campagne=self.campagne,
+            nom="Candidat",
+            prenom="Test",
+            email="candidat.questions@example.com",
+            telephone="+221770001122",
+        )
+
+        self.entretien = Entretien.objects.create(
+            campagne=self.campagne,
+            type=Entretien.Type.TECHNIQUE,
+            statut=Entretien.Statut.PLANIFIE,
+            date=date(2026, 9, 15),
+            heure_debut=time(9, 0),
+            heure_fin=time(12, 0),
+            duree_minutes=45,
+            lieu="Simplon Sénégal",
+            notes="Évaluer les compétences techniques.",
+        )
+        self.entretien.jurys.add(self.jury)
+
+        self.creneau = CreneauEntretien.objects.create(
+            entretien=self.entretien,
+            candidature=self.candidat,
+            heure_debut=time(9, 0),
+            heure_fin=time(9, 45),
+        )
+
+        self.question = QuestionEntretien.objects.create(
+            campagne=self.campagne,
+            intitule="Quelle est votre expérience avec Django ?",
+            type_question=QuestionEntretien.TypeQuestion.TEXTAREA,
+            ordre=1,
+            obligatoire=True,
+            note_max=10,
+        )
+
+    def test_admin_cree_question(self):
+        """L'administrateur peut créer une question."""
+        self.client.force_authenticate(user=self.admin)
+        url = "/api/questions-entretien/"
+        payload = {
+            "campagne": self.campagne.id,
+            "intitule": "Question de test",
+            "type_question": "TEXT",
+            "ordre": 2,
+            "obligatoire": False,
+            "note_max": 5,
+        }
+        response = self.client.post(url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["intitule"], "Question de test")
+
+    def test_candidat_ne_peut_pas_creer_question(self):
+        """Un candidat ne peut pas créer de question."""
+        candidat_user = User.objects.create_user(
+            email="candidat.test@example.com",
+            first_name="Candidat",
+            last_name="User",
+            role=User.Role.CANDIDAT,
+            status=User.Status.ACTIVE,
+        )
+        self.client.force_authenticate(user=candidat_user)
+        url = "/api/questions-entretien/"
+        payload = {
+            "campagne": self.campagne.id,
+            "intitule": "Question interdite",
+            "type_question": "TEXT",
+        }
+        response = self.client.post(url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_questions_associees_auto_confirmation(self):
+        """Les questions de la campagne sont associées automatiquement à la confirmation."""
+        confirmer_et_envoyer_convocations(self.entretien, envoyer_emails=False)
+        self.entretien.refresh_from_db()
+        self.assertTrue(self.entretien.questions_entretien.filter(id=self.question.id).exists())
+
+    def test_jury_recupere_questions_entretien(self):
+        """Le jury assigné récupère les questions de son entretien."""
+        confirmer_et_envoyer_convocations(self.entretien, envoyer_emails=False)
+        self.client.force_authenticate(user=self.jury)
+        url = f"/api/entretiens/{self.entretien.id}/questions/"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["questions"]), 1)
+        self.assertEqual(response.data["questions"][0]["intitule"], self.question.intitule)
+        self.assertEqual(response.data["score_total"], 0)
+
+    def test_jury_saisit_reponse(self):
+        """Le jury peut saisir une réponse, une note et un commentaire."""
+        confirmer_et_envoyer_convocations(self.entretien, envoyer_emails=False)
+        self.client.force_authenticate(user=self.jury)
+        url = f"/api/entretiens/{self.entretien.id}/reponses/"
+        payload = {
+            "question": self.question.id,
+            "reponse": "Le candidat a une bonne maîtrise de Django.",
+            "note": 8,
+            "commentaire": "Excellente connaissance des ORM.",
+        }
+        response = self.client.post(url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["success"])
+        self.assertEqual(response.data["score_total"], 8)
+
+    def test_jury_ne_peut_pas_acceder_entretien_non_assigne(self):
+        """Un jury non assigné ne peut pas accéder aux questions."""
+        autre_jury = User.objects.create_user(
+            email="autre.jury@simplon.sn",
+            first_name="Autre",
+            last_name="Jury",
+            role=User.Role.JURY,
+            status=User.Status.ACTIVE,
+        )
+        self.client.force_authenticate(user=autre_jury)
+        url = f"/api/entretiens/{self.entretien.id}/questions/"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_score_total_auto(self):
+        """Le score total est calculé automatiquement à partir des réponses."""
+        confirmer_et_envoyer_convocations(self.entretien, envoyer_emails=False)
+        ReponseEntretien.objects.create(
+            entretien=self.entretien,
+            question=self.question,
+            jury=self.jury,
+            note=7,
+        )
+        self.assertEqual(self.entretien.score_total, 7)
